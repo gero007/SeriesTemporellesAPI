@@ -13,7 +13,7 @@ def test_predict_with_sample_data():
 
     # Étape 2 : Envoyer les données d'exemple au point de terminaison de prédiction
     payload = {
-        "remote_url": "http://localhost:8000/sample-data/",
+        "remote_url": "https://raw.githubusercontent.com/gero007/SeriesTemporellesAPI/refs/heads/main/data/sample.json",
         "scale": "D",
         "periods": 5
     }
