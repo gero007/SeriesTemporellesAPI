@@ -1,37 +1,52 @@
 from fastapi import APIRouter, HTTPException
-from app.utils import fetch_and_process_data
 from models.prophet_model import run_prophet
 import os
 import json
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+import pandas as pd
+from typing import List, Dict
 
 router = APIRouter()
 
-@router.get("/predict/")
-async def predict(
-    remote_url: str,
-    scale: str ,
-    periods: int = 10
-):
+# Input schema for the endpoint
+class PredictRequest(BaseModel):
+    period: int
+    scale: str
+    data: List[Dict[str, float]]
+
+@router.post("/predict/")
+async def predict(request: PredictRequest):
     """
-    Récupérer les données de séries temporelles à partir d'une URL et exécuter le modèle Prophet pour la prédiction.
+    Récupérer les données de séries temporelles à partir des données fournies et exécuter le modèle Prophet pour la prédiction.
     Args:
-        remote_url (str): URL pour récupérer les données de séries temporelles.
-        scale (str, optionnel): Échelle de temps (par exemple, 'quotidien', 'mensuel', 'annuel'). Par défaut à None.
-        periods (int): Nombre de périodes à prévoir.
+        request (PredictRequest): Données d'entrée pour la prédiction, y compris la période, l'échelle et les données de séries temporelles.
 
     Returns:
         dict: Données originales et prédites au format JSON.
     """
     try:
-        # Fetch and process data
-        df = fetch_and_process_data(remote_url)
-        # Run Prophet model
-        result = run_prophet(df, scale, periods)
+        # Convert the input data to a DataFrame
+        data_dict = {}
+        for entry in request.data:
+            for date, value in entry.items():
+                data_dict[date] = value
+
+        # Convert to DataFrame
+        df = pd.DataFrame(list(data_dict.items()), columns=["ds", "y"])
+        df["ds"] = pd.to_datetime(df["ds"], errors="raise")
+
+        # Check and convert the 'ds' column
+        try:
+            df['ds'] = pd.to_datetime(df['ds'], errors='raise')
+        except Exception as e:
+            raise ValueError(f"Invalid date formats found. Error: {e}")
+
+        # Run the prediction
+        result = run_prophet(df, request.scale, request.period)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
 
 @router.get("/sample-data/")
 async def get_sample_data():

@@ -1,35 +1,39 @@
 from prophet import Prophet
 import pandas as pd
-
-from prophet import Prophet
-import pandas as pd
+from dateutil import parser
 
 def run_prophet(df: pd.DataFrame, scale: str, periods: int) -> dict:
     """Run Prophet prediction on the given DataFrame."""
     try:
+        # Detect the input date format
+        sample_date = df['ds'].iloc[0]
+        input_date_format = parser.parse(str(sample_date)).strftime('%Y-%m-%d')
 
-        # Initialiser et ajuster le modèle
+        # Initialize and fit the model
         model = Prophet()
         model.fit(df)
 
-        # Générer des dates futures
+        # Generate future dates
         future = model.make_future_dataframe(periods=periods, freq=scale)
-
-        # Prédire uniquement pour les périodes futures
         forecast = model.predict(future)
+
+        # Separate future predictions
         future_forecast = forecast.iloc[-periods:]
 
-        # Combiner les données originales et prédites
-        result = df[['ds', 'y']].copy()
-        result['type'] = 'original'
+        # Prepare the "Original" section
+        original = [{"ds": row["ds"], "y": row["y"]} for _, row in df.iterrows()]
+        original = [{str(item["ds"].date()): item["y"]} for item in original]
 
-        future_result = future_forecast[['ds']].copy()
-        future_result['y'] = future_forecast['yhat']
-        future_result['type'] = 'predicted'
+        # Prepare the "Predicted" section
+        predicted = [{"ds": row["ds"], "yhat": row["yhat"]} for _, row in future_forecast.iterrows()]
+        predicted = [{str(item["ds"].date()): item["yhat"]} for item in predicted]
 
-        combined_result = pd.concat([result, future_result], ignore_index=True)
-
-        return combined_result.to_dict(orient='records')
+        # Combine results into desired format
+        result = {
+            "Original": original,
+            "Predicted": predicted
+        }
+        return result
+        return response
     except Exception as e:
-        raise ValueError(f"Erreur dans le modèle Prophet: {str(e)}")
-    
+        raise ValueError(f"Error in Prophet model: {str(e)}")
