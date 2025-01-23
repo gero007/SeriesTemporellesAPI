@@ -25,7 +25,7 @@ def run_prophet(df: pd.DataFrame, scale: str, periods: int) -> dict:
 
         future_result = future_forecast[['ds']].copy()
         future_result['y'] = future_forecast['yhat']
-        future_result['type'] = 'prévu'
+        future_result['type'] = 'predicted'
 
         combined_result = pd.concat([result, future_result], ignore_index=True)
 
